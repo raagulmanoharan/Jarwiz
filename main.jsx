@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
-import { Tldraw, useEditor } from '@tldraw/tldraw'
+import { Tldraw, useEditor, TldrawUiMenuItem } from '@tldraw/tldraw'
 import '@tldraw/tldraw/tldraw.css'
 import './custom-navigation.css'
 import Header from './Header'
@@ -15,37 +15,67 @@ function CustomNavigation() {
     if (!editor) return
     
     const updateZoom = () => {
-      const zoom = Math.round(editor.getZoomLevel() * 100)
-      setCurrentZoom(zoom)
+      try {
+        const zoom = Math.round(editor.getZoomLevel() * 100)
+        setCurrentZoom(zoom)
+      } catch (error) {
+        console.warn('Error updating zoom:', error)
+      }
     }
 
-    editor.on('camera', updateZoom)
-    updateZoom()
+    // Listen to camera changes
+    let unsubscribe
+    try {
+      unsubscribe = editor.store.listen(() => {
+        updateZoom()
+      })
+      updateZoom()
+    } catch (error) {
+      console.warn('Error setting up zoom listener:', error)
+    }
 
     return () => {
-      editor.off('camera', updateZoom)
+      try {
+        if (unsubscribe) {
+          unsubscribe()
+        }
+      } catch (error) {
+        console.warn('Error cleaning up zoom listener:', error)
+      }
     }
   }, [editor])
 
   const handleZoomIn = () => {
-    editor.zoomIn()
+    if (editor) {
+      editor.zoomIn()
+    }
   }
 
   const handleZoomOut = () => {
-    editor.zoomOut()
+    if (editor) {
+      editor.zoomOut()
+    }
   }
 
   const handleZoomTo100 = () => {
-    editor.resetZoom()
+    if (editor) {
+      editor.resetZoom()
+    }
   }
 
   const handleZoomToFit = () => {
-    editor.zoomToFit()
+    if (editor) {
+      editor.zoomToFit()
+    }
   }
 
   const handleZoomToSelection = () => {
-    editor.zoomToSelection()
+    if (editor) {
+      editor.zoomToSelection()
+    }
   }
+
+  if (!editor) return null
 
   return (
     <div className="custom-navigation">
@@ -96,29 +126,53 @@ function CustomNavigation() {
   )
 }
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.warn('App Error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>Something went wrong. Please refresh the page.</div>
+    }
+
+    return this.props.children
+  }
+}
+
 function App() {
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
-      <Header />
-      <Tldraw
-        hideUi={false}
-        components={{
-          NavigationPanel: null,
-          ZoomMenu: null,
-          MainMenu: null,
-          ActionsMenu: null,
-          HelpMenu: null,
-          PageMenu: null,
-          Toolbar: null,
-          StylePanel: null,
-          DebugMenu: null,
-          DebugPanel: null,
-        }}
-      >
-        <CustomNavigation />
-      </Tldraw>
-      <AskInput />
-    </div>
+    <ErrorBoundary>
+      <div style={{ position: 'fixed', inset: 0 }}>
+        <Header />
+        <Tldraw
+          components={{
+            NavigationPanel: null,
+            ZoomMenu: null,
+            MainMenu: null,
+            ActionsMenu: null,
+            HelpMenu: null,
+            PageMenu: null,
+            Toolbar: null,
+            StylePanel: null,
+            DebugMenu: null,
+            DebugPanel: null,
+            InFrontOfTheCanvas: CustomNavigation,
+          }}
+        >
+        </Tldraw>
+        <AskInput />
+      </div>
+    </ErrorBoundary>
   )
 }
 
