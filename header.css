@@ -1,0 +1,65 @@
+.board-header {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: 300px;
+  height: 44px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  gap: 12px;
+  z-index: 1001;
+}
+
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #202020;
+  padding: 0 8px;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: normal;
+}
+
+.logo-text {
+  letter-spacing: normal;
+}
+
+.board-title {
+  font-size: 14px;
+  font-weight: 400;
+  color: #202020;
+  margin: 0;
+  padding: 2px 8px;
+  cursor: text;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: normal;
+}
+
+.board-title:hover {
+  background-color: #f5f5f5;
+}
+
+.board-title-input {
+  font-size: 14px;
+  font-weight: 400;
+  color: #202020;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  letter-spacing: normal;
+}
+
+

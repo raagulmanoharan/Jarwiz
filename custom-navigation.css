@@ -1,0 +1,130 @@
+.custom-navigation {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.zoom-menu {
+  background: white;
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 220px;
+  margin-bottom: 8px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.zoom-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #202020;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  letter-spacing: normal;
+}
+
+.zoom-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.zoom-menu-item .shortcut {
+  color: #999;
+  font-size: 13px;
+  margin-left: 20px;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #EFEFEF;
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.zoom-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.zoom-button:hover {
+  background-color: #f5f5f5;
+  color: #202020;
+}
+
+.zoom-display {
+  min-width: 60px;
+  height: 32px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #202020;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0 8px;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: normal;
+}
+
+.zoom-display:hover {
+  background-color: #f5f5f5;
+}
+
+/* Hide default TLdraw UI elements */
+.tlui-navigation-panel {
+  display: none !important;
+}
+
+.tlui-zoom-menu {
+  display: none !important;
+}
+
+.tlui-menu-zone {
+  display: none !important;
+}
+
+.tlui-toolbar {
+  display: none !important;
+}
+
+.tlui-style-panel {
+  display: none !important;
+}
+
+/* Reposition TLdraw watermark */
+.tlui-helper-buttons {
+  bottom: 16px !important;
+  right: 16px !important;
+  left: auto !important;
+}
+
+/* Set canvas background color */
+.tl-canvas {
+  background-color: #EFEFEF !important;
+}
+
+.tl-background {
+  background-color: #EFEFEF !important;
+}
