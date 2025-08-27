@@ -7,6 +7,8 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 - **Infinite Canvas** - Unlimited drawing space powered by TLdraw
 - **Custom UI** - Clean, minimal interface with JARWIZ branding
 - **Smart Input** - Expandable ask input with spacebar shortcut activation
+- **YouTube Embedding** - Paste YouTube URLs to create movable video players on canvas
+- **Excel Table Cards** - Paste Excel files to create beautiful, paginated table cards with progressive loading
 - **Zoom Controls** - Custom zoom controls positioned at bottom-left
 - **Editable Board Title** - Click to rename your board inline
 - **Consistent Design** - Poppins font, rounded corners, and cohesive styling
@@ -26,6 +28,11 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 3. **Open in browser**
    Navigate to `http://localhost:5173`
 
+4. **Try media embedding**
+   - Copy any YouTube URL and paste it on the canvas to create a video player
+   - Simply drag & drop Excel files (.xlsx, .xls) onto the canvas for instant table cards
+   - Or copy/paste Excel files for the same result
+
 ## UI Components
 
 ### Header
@@ -38,6 +45,24 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 - **Expanded state**: Full-width input with send button
 - **Keyboard shortcut**: Press `Space` to expand (when not typing)
 - Positioned at bottom-center
+
+### YouTube Embedding
+- **Paste YouTube URLs** anywhere on the canvas to create embedded video players
+- **Supported formats**: youtube.com/watch?v=, youtu.be/, youtube.com/embed/
+- **Interactive players**: Videos can be played, paused, and controlled directly on canvas
+- **Movable and resizable**: Video players can be repositioned and resized like any other shape
+- **Auto-detection**: URLs are automatically recognized and converted to embedded players
+
+### Excel Table Cards
+- **Drag & drop or paste Excel files** (.xlsx, .xls, .xlsm) to create interactive table cards
+- **Simple drag & drop**: No overlays or visual indicators - just drop files directly on canvas
+- **Smart positioning**: Tables appear exactly where you drop the file
+- **Progressive loading**: Tables appear immediately and data loads incrementally for smooth UX
+- **Smart pagination**: Large datasets automatically split into navigable pages
+- **File information**: Shows file name, size, and current page position
+- **Fully interactive**: Sort, scroll, and navigate through data directly on canvas
+- **Responsive design**: Tables adapt to different screen sizes and data volumes
+- **Movable and resizable**: Position and resize table cards anywhere on the canvas
 
 ### Zoom Controls
 - **Zoom in/out** buttons with percentage display
@@ -53,6 +78,7 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 - `⇧ 0` - Zoom to 100%
 - `⇧ 1` - Zoom to fit
 - `⇧ 2` - Zoom to selection
+- `⌘ V` / `Ctrl V` - Paste (auto-detects YouTube URLs and Excel files)
 - `Enter` - Submit ask input
 
 ## Design System
@@ -68,6 +94,7 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 
 - **React 19** - UI framework
 - **TLdraw** - Infinite canvas and drawing engine
+- **SheetJS (xlsx)** - Excel file parsing and processing
 - **Vite** - Build tool and development server
 - **CSS3** - Custom styling with modern features
 
@@ -90,9 +117,10 @@ src/
 The app uses Vite for fast development and hot module replacement. All UI components are built as separate modules for maintainability.
 
 ### Key Files
-- `main.jsx` - Main app component with TLdraw integration
+- `main.jsx` - Main app component with TLdraw integration and custom file handlers
 - `Header.jsx` - Floating header with editable title
 - `AskInput.jsx` - Smart expandable input with keyboard shortcuts
+- `ExcelTable.jsx` - Interactive table component with pagination
 - Custom CSS files for each component with consistent design tokens
 
 ## License

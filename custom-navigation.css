@@ -12,6 +12,8 @@
 .zoom-menu {
   background: white;
   border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
   padding: 8px;
   min-width: 220px;
   margin-bottom: 8px;
@@ -127,4 +129,14 @@
 
 .tl-background {
   background-color: #EFEFEF !important;
+}
+
+/* Ensure TLdraw doesn't capture space key events for panning */
+.tl-container {
+  pointer-events: auto;
+}
+
+/* Disable hand tool keyboard shortcut */
+.tlui-keyboard-shortcuts-dialog__key-pair:has-text("Space") {
+  display: none !important;
 }

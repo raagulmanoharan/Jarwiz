@@ -17,13 +17,15 @@ function AskInput() {
       // Only trigger if not already focused on an input and not expanded
       if (!isExpanded && e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault()
+        e.stopImmediatePropagation() // Prevent other handlers from processing this event
         setIsExpanded(true)
       }
     }
 
-    document.addEventListener('keydown', handleGlobalKeydown)
+    // Use capture phase to ensure this handler runs before TLdraw's handlers
+    document.addEventListener('keydown', handleGlobalKeydown, true)
     return () => {
-      document.removeEventListener('keydown', handleGlobalKeydown)
+      document.removeEventListener('keydown', handleGlobalKeydown, true)
     }
   }, [isExpanded])
 

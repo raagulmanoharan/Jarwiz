@@ -12,7 +12,7 @@
   align-items: center;
   background: white;
   border-radius: 12px;
-  border: 1px solid rgb(229, 229, 229);
+  border: 1px solid rgba(0, 0, 0, 0.05);
   padding: 6px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
