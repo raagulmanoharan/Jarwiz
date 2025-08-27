@@ -1,7 +1,7 @@
 .excel-table-container {
   background: white;
   border-radius: 12px;
-  box-shadow: 0 0 100px 0.1px color(display-p3 0.8994 0.8994 0.8994);
+  box-shadow: none;
   overflow: hidden;
   width: 100%;
   height: 100%;
@@ -273,7 +273,7 @@
    Border: Very subtle border for definition
 */
 .soft-card-shadow {
-  box-shadow: 0 0 100px 0.1px color(display-p3 0.8994 0.8994 0.8994);
+  box-shadow: none;
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 12px;
   background: white;
@@ -282,7 +282,7 @@
 /* Improve the overall card styling */
 .excel-table-container {
   border-radius: 12px;
-  box-shadow: 0 0 100px 0.1px color(display-p3 0.8994 0.8994 0.8994);
+  box-shadow: none;
   border: 1px solid rgba(0, 0, 0, 0.05);
   background: white;
   overflow: hidden;

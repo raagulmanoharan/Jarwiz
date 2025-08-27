@@ -1,14 +1,22 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
+import LoadingCard from './LoadingCard'
 import './excel-table.css'
 
-function ExcelTable({ data, fileName, isLoading = false, currentPage = 0, onPageChange, onHeightChange }) {
+function ExcelTable({ 
+  data, 
+  fileName, 
+  isLoading = false, 
+  currentPage = 0, 
+  onPageChange, 
+  onHeightChange,
+  isInitialLoading = false,
+  loadingMessage = 'Loading...',
+  loadingSubMessage = '',
+  fileType = 'file'
+}) {
   const [itemsPerPage] = useState(10)
   const containerRef = useRef(null)
-  
 
-  
-
-  
   const totalPages = Math.ceil(data.length / itemsPerPage)
   const startIndex = currentPage * itemsPerPage
   const endIndex = Math.min(startIndex + itemsPerPage, data.length)
@@ -80,7 +88,6 @@ function ExcelTable({ data, fileName, isLoading = false, currentPage = 0, onPage
   
   const handlePageChange = (newPage) => {
     if (newPage >= 0 && newPage < totalPages && onPageChange) {
-      console.log('Page change:', currentPage, '→', newPage)
       onPageChange(newPage)
     }
   }
@@ -111,6 +118,18 @@ function ExcelTable({ data, fileName, isLoading = false, currentPage = 0, onPage
   }, [data.length, currentPage, itemsPerPage]) // Remove onHeightChange from dependencies
 
 
+
+  // Show loading card during initial loading
+  if (isInitialLoading) {
+    return (
+      <LoadingCard
+        message={loadingMessage}
+        subMessage={loadingSubMessage}
+        fileName={fileName}
+        fileType={fileType}
+      />
+    )
+  }
 
   return (
     <div ref={containerRef} className="excel-table-container">

@@ -13,7 +13,7 @@
   background: white;
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   padding: 8px;
   min-width: 220px;
   margin-bottom: 8px;
@@ -139,4 +139,65 @@
 /* Disable hand tool keyboard shortcut */
 .tlui-keyboard-shortcuts-dialog__key-pair:has-text("Space") {
   display: none !important;
+}
+
+/* Override TLDraw font families to use Poppins everywhere */
+.tl-container {
+  --tl-font-draw: 'Poppins', sans-serif !important;
+  --tl-font-sans: 'Poppins', sans-serif !important;
+  --tl-font-serif: 'Poppins', serif !important;
+  --tl-font-mono: 'Poppins', monospace !important;
+}
+
+/* Additional text styling overrides */
+.tl-text-wrapper[data-font='draw'],
+.tl-text-wrapper[data-font='sans'],
+.tl-text-wrapper[data-font='serif'],
+.tl-text-wrapper[data-font='mono'] {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+.tl-text,
+.tl-text-input,
+.tl-text-content,
+.tl-text-shape-label {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+/* Hide ALL resize handles on canvas - comprehensive approach */
+.tl-corner-handle,
+.tl-resize-handle,
+.tl-text-handle,
+.tl-corner-crop-handle,
+.tl-corner-crop-edge-handle,
+.tl-rotate-corner {
+  display: none !important;
+}
+
+/* Hide user handles overlay */
+.tl-user-handles {
+  display: none !important;
+}
+
+/* Native TLDraw selection outline with consistent corner radius matching cards */
+
+/* Define card radius variable for consistency */
+:root {
+  --selection-radius: 12px; /* Matches --card-radius from card-shadows.css */
+}
+
+/* Apply consistent 12px corner radius to selection and hover rect elements only */
+.tl-selection__fg__outline rect,
+.tl-shape-indicator rect,
+.tl-user-indicator rect,
+.tl-collaborator__shape-indicator rect {
+  rx: var(--selection-radius) !important;
+  ry: var(--selection-radius) !important;
+}
+
+/* Fallback for any additional indicator rect elements */
+[class*="indicator"] rect,
+[class*="selection"] rect {
+  rx: var(--selection-radius) !important;
+  ry: var(--selection-radius) !important;
 }

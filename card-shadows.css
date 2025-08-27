@@ -1,0 +1,140 @@
+/* Consistent Card Styling for All Canvas Elements */
+/* Unified clean styling across all embed and card types - no shadows */
+
+/* Universal Card Styling Variables - Clean minimal design */
+:root {
+  --card-shadow: none; /* Shadows removed for clean design */
+  --card-radius: 12px;
+  --card-background: white;
+  /* --card-border removed - TLDraw handles all selection outlines */
+}
+
+/* === TLDraw Native Embeds === */
+
+/* TLdraw Embed Shape Container - only shadow, no border conflicts with selection */
+.tl-shape[data-shape-type="embed"] {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  overflow: hidden !important;
+  /* NO background property - let embed content show through */
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* Ensure iframe content is not affected by our styling */
+.tl-shape[data-shape-type="embed"] iframe {
+  border-radius: var(--card-radius) !important;
+  border: none !important;
+  background: transparent !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* === Custom Canvas Cards === */
+
+/* Excel Table Cards (already styled, but ensuring consistency) */
+.excel-table-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* PDF Viewer Cards */
+.pdf-viewer-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* Website Link Preview Cards */
+.link-shape-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* Loading Cards */
+.loading-card-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* General card class for any future cards */
+.canvas-card {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* === TLDraw Shape Containers === */
+
+/* Custom shape containers to ensure consistent styling */
+.tl-shape[data-shape-type="excel-table"] {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+.tl-shape[data-shape-type="pdf-viewer"] {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+.tl-shape[data-shape-type="link"] {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+/* === UI Elements === */
+
+/* Right-click Context Menu */
+.tlui-menu {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  backdrop-filter: blur(10px) !important;
+  /* NO border property - avoid border conflicts */
+}
+
+/* Context Menu Items */
+.tlui-menu .tlui-menu__group {
+  background: transparent !important;
+}
+
+/* Toast Notifications */
+.toast {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - avoid border conflicts */
+}
+
+/* === Exclusions === */
+
+/* Ensure no shadows on header and input elements */
+.header,
+.ask-input-container,
+.custom-navigation {
+  box-shadow: none !important;
+}
+
+/* === Embed Containers === */
+
+/* Apply shadows to any additional embed containers */
+.tl-html-container,
+.tl-embed-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  /* NO background - let content show through */
+  /* NO border property - let TLDraw handle selection outlines */
+}
