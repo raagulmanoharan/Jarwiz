@@ -1,7 +1,7 @@
 .custom-navigation {
   position: absolute;
-  bottom: 16px;
-  left: 16px;
+  bottom: 8px;
+  left: 8px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -117,8 +117,8 @@
 
 /* Reposition TLdraw watermark */
 .tlui-helper-buttons {
-  bottom: 16px !important;
-  right: 16px !important;
+  bottom: 8px !important;
+  right: 8px !important;
   left: auto !important;
 }
 
