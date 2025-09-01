@@ -35,26 +35,20 @@ const findOptimalShapePosition = (editor, shapeWidth, shapeHeight) => {
       }
     }
 
-    // Find the rightmost edge of all existing shapes
+    // Find the rightmost edge and use the first shape's Y position for horizontal alignment
     let rightmostX = Number.NEGATIVE_INFINITY
-    let topY = Number.POSITIVE_INFINITY
-    let bottomY = Number.NEGATIVE_INFINITY
+    let baselineY = null
 
     existingShapes.forEach(shape => {
       const shapeRightEdge = shape.x + (shape.props?.w || 100)
-      const shapeTop = shape.y
-      const shapeBottom = shape.y + (shape.props?.h || 100)
       
       if (shapeRightEdge > rightmostX) {
         rightmostX = shapeRightEdge
       }
       
-      if (shapeTop < topY) {
-        topY = shapeTop
-      }
-      
-      if (shapeBottom > bottomY) {
-        bottomY = shapeBottom
+      // Use the first shape's Y position as the baseline for horizontal alignment
+      if (baselineY === null) {
+        baselineY = shape.y
       }
     })
 
@@ -62,9 +56,8 @@ const findOptimalShapePosition = (editor, shapeWidth, shapeHeight) => {
     const spacing = 80
     const newX = rightmostX + spacing
     
-    // For Y position, try to align with the center of existing shapes' vertical range
-    const existingCenterY = (topY + bottomY) / 2
-    const newY = existingCenterY - shapeHeight / 2
+    // Align new card to the same horizontal line as the first card
+    const newY = baselineY
 
     return { x: newX, y: newY }
   } catch (error) {
@@ -140,6 +133,28 @@ const centerCameraOnShape = (editor, shapeX, shapeY, shapeWidth = 0, shapeHeight
             ...newCamera
           }])
         }
+      }
+    }
+
+    // After panning, slightly adjust zoom to ensure the card fits in view
+    // without over-zooming. This keeps existing pan behavior intact.
+    const pad = 40 // page-units padding around the card
+    const cardW = Math.max(1, shapeWidth || 100) + pad * 2
+    const cardH = Math.max(1, shapeHeight || 100) + pad * 2
+
+    // Recompute viewport (in page space) in case it changed after the pan call
+    const vp = editor.getViewportPageBounds()
+    const needScale = Math.max(cardW / vp.w, cardH / vp.h)
+
+    if (needScale > 1.02) {
+      // Compute target zoom to fit, clamp to sane bounds
+      const camAfterPan = editor.getCamera()
+      const currentZ = camAfterPan.z ?? editor.getZoomLevel?.() ?? 1
+      const targetZ = Math.max(0.05, Math.min(8, currentZ / needScale))
+
+      // Apply only zoom, preserving current camera x/y to avoid disturbing pan
+      if (editor.setCamera) {
+        editor.setCamera({ x: camAfterPan.x, y: camAfterPan.y, z: targetZ }, { animation: { duration: 250 } })
       }
     }
   } catch (error) {
