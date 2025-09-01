@@ -12,6 +12,141 @@ import PDFViewer from './PDFViewer'
 import LinkPreview from './LinkPreview'
 import * as XLSX from 'xlsx'
 
+// Helper function to find optimal position for new shape (avoiding overlaps)
+const findOptimalShapePosition = (editor, shapeWidth, shapeHeight) => {
+  if (!editor) {
+    return { x: 0, y: 0 }
+  }
+
+  try {
+    // Get current viewport bounds
+    const viewport = editor.getViewportPageBounds()
+    const centerX = viewport.x + viewport.w / 2
+    const centerY = viewport.y + viewport.h / 2
+
+    // Get all existing shapes on the current page
+    const existingShapes = editor.getCurrentPageShapes()
+    
+    if (existingShapes.length === 0) {
+      // No existing shapes, place at viewport center
+      return {
+        x: centerX - shapeWidth / 2,
+        y: centerY - shapeHeight / 2
+      }
+    }
+
+    // Find the rightmost edge of all existing shapes
+    let rightmostX = Number.NEGATIVE_INFINITY
+    let topY = Number.POSITIVE_INFINITY
+    let bottomY = Number.NEGATIVE_INFINITY
+
+    existingShapes.forEach(shape => {
+      const shapeRightEdge = shape.x + (shape.props?.w || 100)
+      const shapeTop = shape.y
+      const shapeBottom = shape.y + (shape.props?.h || 100)
+      
+      if (shapeRightEdge > rightmostX) {
+        rightmostX = shapeRightEdge
+      }
+      
+      if (shapeTop < topY) {
+        topY = shapeTop
+      }
+      
+      if (shapeBottom > bottomY) {
+        bottomY = shapeBottom
+      }
+    })
+
+    // Add spacing between cards (80px gap)
+    const spacing = 80
+    const newX = rightmostX + spacing
+    
+    // For Y position, try to align with the center of existing shapes' vertical range
+    const existingCenterY = (topY + bottomY) / 2
+    const newY = existingCenterY - shapeHeight / 2
+
+    return { x: newX, y: newY }
+  } catch (error) {
+    console.warn('Failed to calculate optimal position, using viewport center:', error)
+    // Fallback to viewport center
+    const viewport = editor.getViewportPageBounds()
+    return {
+      x: viewport.x + viewport.w / 2 - shapeWidth / 2,
+      y: viewport.y + viewport.h / 2 - shapeHeight / 2
+    }
+  }
+}
+
+// Helper function to smoothly center camera on a new shape
+const centerCameraOnShape = (editor, shapeX, shapeY, shapeWidth = 0, shapeHeight = 0) => {
+  if (!editor) return
+
+  try {
+    // Get current viewport bounds
+    const viewport = editor.getViewportPageBounds()
+    const currentCamera = editor.getCamera()
+    
+    // Calculate the center of the new shape
+    const shapeCenterX = shapeX + shapeWidth / 2
+    const shapeCenterY = shapeY + shapeHeight / 2
+    
+    // Calculate the center of the current viewport
+    const viewportCenterX = viewport.x + viewport.w / 2
+    const viewportCenterY = viewport.y + viewport.h / 2
+    
+    // Calculate the offset needed to center the shape
+    const offsetX = shapeCenterX - viewportCenterX
+    const offsetY = shapeCenterY - viewportCenterY
+    
+    // Only move camera if the shape is not already mostly centered
+    const threshold = Math.min(viewport.w, viewport.h) * 0.1 // 10% of viewport
+    
+    if (Math.abs(offsetX) > threshold || Math.abs(offsetY) > threshold) {
+      // Use panZoomIntoView as primary method (most reliable)
+      if (editor.panZoomIntoView) {
+        // Smoothly pan to the new shape - this handles coordinate system correctly
+        editor.panZoomIntoView([{
+          x: shapeX,
+          y: shapeY,
+          w: shapeWidth || 100,
+          h: shapeHeight || 100
+        }])
+      } else if (editor.setCamera) {
+        // TLDraw camera coordinates: to follow a shape moving right, camera moves left
+        // This is because camera position is the top-left of what we see
+        const newCameraX = currentCamera.x - offsetX  // Inverted X for correct direction
+        const newCameraY = currentCamera.y - offsetY  // Inverted Y for correct direction
+        
+        // Set camera position directly with smooth animation
+        editor.setCamera({
+          x: newCameraX,
+          y: newCameraY,
+          z: currentCamera.z // Keep current zoom level
+        }, { animation: { duration: 300 } })
+      } else {
+        // Fallback: try to use internal camera methods with corrected coordinates
+        const newCamera = {
+          ...currentCamera,
+          x: currentCamera.x - offsetX,  // Inverted coordinates
+          y: currentCamera.y - offsetY
+        }
+        
+        // Attempt to set camera using store update
+        if (editor.store && editor.store.put) {
+          editor.store.put([{
+            typeName: 'camera',
+            id: 'camera:page:page',
+            ...newCamera
+          }])
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to center camera on shape:', error)
+  }
+}
+
 // URL validation utility
 const isValidURL = (string) => {
   try {
@@ -482,22 +617,26 @@ function YouTubePasteHandler() {
         e.stopImmediatePropagation()
         
         try {
-          // Get current viewport center for positioning
-          const viewport = editor.getViewportPageBounds()
-          const centerX = viewport.x + viewport.w / 2
-          const centerY = viewport.y + viewport.h / 2
-
-          // Create embed shape at center of viewport
+          // Find optimal position to avoid overlaps
+          const shapeW = 560
+          const shapeH = 315
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
           editor.createShape({
             type: 'embed',
-            x: centerX - 280, // Half of default width (560/2)
-            y: centerY - 157.5, // Half of default height (315/2)
+            x: position.x,
+            y: position.y,
             props: {
               url: pastedText,
-              w: 560,
-              h: 315,
+              w: shapeW,
+              h: shapeH,
             },
           })
+          
+          // Smoothly center camera on the new shape
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100) // Small delay to ensure shape is created
           
           console.log('YouTube video embedded:', pastedText)
         } catch (error) {
@@ -558,11 +697,6 @@ function GoogleSheetsPasteHandler() {
         e.stopImmediatePropagation()
         
         try {
-          // Get current viewport center for positioning
-          const viewport = editor.getViewportPageBounds()
-          const centerX = viewport.x + viewport.w / 2
-          const centerY = viewport.y + viewport.h / 2
-
           console.log('Google Sheets URL processing started:', pastedText)
 
           // Extract sheet name from URL for display
@@ -578,21 +712,30 @@ function GoogleSheetsPasteHandler() {
           // Generate a unique ID for the shape
           const shapeId = `shape:excel_${Date.now()}_${Math.random().toString(36).substring(2)}`
           
-          // Create loading shape first
+          // Find optimal position to avoid overlaps
+          const shapeW = 1600
+          const shapeH = 650
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
           editor.createShape({
             id: shapeId,
             type: 'excel-table',
-            x: centerX - 800, // Half of default width (1600/2)
-            y: centerY - 325, // Half of default height (650/2)
+            x: position.x,
+            y: position.y,
             props: {
-              w: 1600,
-              h: 650,
+              w: shapeW,
+              h: shapeH,
               data: [],
               fileName: sheetName,
               currentPage: 0,
               isLoading: true,
             },
           })
+          
+          // Smoothly center camera on the new shape
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100) // Small delay to ensure shape is created
 
           // Fetch Google Sheets data
           const csvUrl = getGoogleSheetsCsvUrl(pastedText)
@@ -750,22 +893,26 @@ function WebsitePasteHandler() {
         e.stopImmediatePropagation()
         
         try {
-          // Get current viewport center for positioning
-          const viewport = editor.getViewportPageBounds()
-          const centerX = viewport.x + viewport.w / 2
-          const centerY = viewport.y + viewport.h / 2
-
-          // Create link shape at center of viewport
+          // Find optimal position to avoid overlaps
+          const shapeW = 400
+          const shapeH = 80
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
           editor.createShape({
             type: 'link',
-            x: centerX - 200, // Half of default width (400/2)
-            y: centerY - 40, // Half of default height (80/2)
+            x: position.x,
+            y: position.y,
             props: {
               url: pastedText,
-              w: 400,
-              h: 80,
+              w: shapeW,
+              h: shapeH,
             },
           })
+          
+          // Smoothly center camera on the new shape
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100) // Small delay to ensure shape is created
           
           console.log('Website link created:', pastedText)
         } catch (error) {
@@ -809,11 +956,6 @@ function ExcelPasteHandler() {
       const file = excelFiles[0]
       
       try {
-        // Get current viewport center for positioning
-        const viewport = editor.getViewportPageBounds()
-        const centerX = viewport.x + viewport.w / 2
-        const centerY = viewport.y + viewport.h / 2
-
         console.log('Excel file processing started:', file.name)
 
         // Process Excel file
@@ -834,21 +976,30 @@ function ExcelPasteHandler() {
         // Generate a unique ID for the shape (TLdraw requires "shape:" prefix)
         const shapeId = `shape:excel_${Date.now()}_${Math.random().toString(36).substring(2)}`
         
-        // Create shape with explicit ID
+        // Find optimal position to avoid overlaps
+        const shapeW = 1600
+        const shapeH = 650
+        const position = findOptimalShapePosition(editor, shapeW, shapeH)
+        
         editor.createShape({
           id: shapeId,
           type: 'excel-table',
-          x: centerX - 800, // Half of default width (1600/2)
-          y: centerY - 325, // Half of default height (650/2)
+          x: position.x,
+          y: position.y,
           props: {
-            w: 1600,
-            h: 650,
+            w: shapeW,
+            h: shapeH,
             data: firstBatch,
             fileName: file.name,
             currentPage: 0,
             isLoading: jsonData.length > batchSize,
           },
         })
+        
+        // Smoothly center camera on the new shape
+        setTimeout(() => {
+          centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+        }, 100) // Small delay to ensure shape is created
         
         console.log('Created shape with explicit ID:', shapeId)
 
@@ -1138,17 +1289,8 @@ function App() {
         return // Let TLdraw handle other file types
       }
 
-      // Get drop position or center if no position provided
-      let centerX, centerY
-      if (point) {
-        centerX = point.x
-        centerY = point.y
-      } else {
-        // Fallback to viewport center
-        const viewport = editor.getViewportPageBounds()
-        centerX = viewport.x + viewport.w / 2
-        centerY = viewport.y + viewport.h / 2
-      }
+      // Note: point parameter indicates drop position, but we'll use optimal positioning instead
+      // to ensure cards don't overlap, regardless of where they're dropped
 
       // Process PDF files first (if any)
       if (pdfFiles.length > 0) {
@@ -1161,12 +1303,16 @@ function App() {
           const loadingMessage = 'Loading PDF Document'
           const loadingSubMessage = 'Processing file content...'
 
-          // Create initial loading shape
+          // Find optimal position to avoid overlaps
+          const shapeW = 800
+          const shapeH = 600
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
           editor.createShape({
             id: shapeId,
             type: 'pdf-viewer',
-            x: centerX - 400,
-            y: centerY - 300,
+            x: position.x,
+            y: position.y,
             props: {
               fileName: file.name,
               fileSize: file.size,
@@ -1176,10 +1322,15 @@ function App() {
               isInitialLoading: true,
               loadingMessage,
               loadingSubMessage,
-              w: 800,
-              h: 600,
+              w: shapeW,
+              h: shapeH,
             },
           })
+          
+          // Smoothly center camera on the new shape
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100) // Small delay to ensure shape is created
 
           // Process PDF file in background
           console.log(`Processing PDF file: ${file.name}, size: ${formatFileSize(file.size)}`)
