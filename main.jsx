@@ -2,15 +2,48 @@ import React, { useState, useRef, useCallback } from 'react'
 import ReactDOM from 'react-dom/client'
 import { Tldraw, useEditor, TldrawUiMenuItem, BaseBoxShapeUtil, HTMLContainer, EmbedShapeUtil } from '@tldraw/tldraw'
 import '@tldraw/tldraw/tldraw.css'
-import './custom-navigation.css'
-import './pdf-viewer.css'
-import './card-shadows.css'
-import Header from './Header'
-import AskInput from './AskInput'
-import ExcelTable from './ExcelTable'
-import PDFViewer from './PDFViewer'
-import LinkPreview from './LinkPreview'
+import './src/components/custom-navigation.css'
+import './src/components/pdf-viewer.css'
+import './src/components/card-shadows.css'
+import Header from './src/components/Header'
+import AskInput from './src/components/AskInput'
+import ExcelTable from './src/components/ExcelTable'
+import PDFViewer from './src/components/PDFViewer'
+import LinkPreview from './src/components/LinkPreview'
+import ImageViewer from './src/components/ImageViewer'
+import { processExcelWithAI, validateExcelData } from './aiExcelProcessor'
+import { calculateCardHeight, applyHeightBounds } from './src/utils/heightCalculator'
 import * as XLSX from 'xlsx'
+
+// Helper function to calculate dynamic Excel table height
+const calculateExcelHeight = (data, hasMultipleSheets, isGoogleSheets = false) => {
+  if (isGoogleSheets) {
+    // For Google Sheets, calculate height based on actual content
+    const headerHeight = 60 // Header height
+    const controlsHeight = hasMultipleSheets ? 50 : 0 // Sheet selector + pagination if needed
+    const tableHeaderHeight = 40 // Table header row
+    const rowHeight = 60 // Increased height per data row for better readability
+    
+    // Show ALL rows without clipping - don't artificially limit height
+    const totalRows = data.length
+    const tableHeight = tableHeaderHeight + (totalRows * rowHeight)
+    const padding = 60 // Increased padding to ensure content is fully visible
+    
+    return Math.max(400, headerHeight + controlsHeight + tableHeight + padding)
+  }
+  
+  const headerHeight = 60 // Header height
+  const controlsHeight = hasMultipleSheets ? 50 : 0 // Sheet selector + pagination if needed
+  const tableHeaderHeight = 40 // Table header row
+  const rowHeight = 60 // Increased height per data row to prevent clipping
+  
+  // Show ALL rows without clipping - don't artificially limit height
+  const totalRows = data.length
+  const tableHeight = tableHeaderHeight + (totalRows * rowHeight)
+  const padding = 60 // Increased padding to ensure content is fully visible
+  
+  return Math.max(300, headerHeight + controlsHeight + tableHeight + padding)
+}
 
 // Helper function to find optimal position for new shape (avoiding overlaps)
 const findOptimalShapePosition = (editor, shapeWidth, shapeHeight) => {
@@ -242,6 +275,20 @@ const detectPDFFile = (file) => {
   return file.type === 'application/pdf' || file.name.match(/\.pdf$/i)
 }
 
+// Image file detection utility
+const detectImageFile = (file) => {
+  const imageTypes = [
+    'image/jpeg',
+    'image/jpg', 
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/svg+xml',
+    'image/bmp'
+  ]
+  return imageTypes.includes(file.type) || file.name.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i)
+}
+
 // Format file size for display
 const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes'
@@ -306,7 +353,7 @@ class ExcelTableShapeUtil extends BaseBoxShapeUtil {
   }
 
   component(shape) {
-    const { data, fileName, currentPage, isLoading } = shape.props
+    const { data, fileName, generatedTitle, currentPage, isLoading, isAIProcessing, aiProgress, aiMessage, sheets, sheetNames, currentSheet } = shape.props
 
     const handlePageChange = (newPage) => {
       const editor = this.editor
@@ -340,12 +387,8 @@ class ExcelTableShapeUtil extends BaseBoxShapeUtil {
       try {
         const currentShape = editor.getShape(shape.id)
         if (currentShape) {
-          // Prevent infinite growth with maximum bounds
-          const maxHeight = 1000 // Maximum reasonable height
-          const minHeight = 200  // Minimum height
-          
-          // Cap the height and add minimal padding
-          const boundedHeight = Math.min(Math.max(newHeight + 10, minHeight), maxHeight)
+          // Use unified height bounds
+          const boundedHeight = applyHeightBounds(newHeight, 'excel-table')
           
           // Only update if there's a significant difference (prevent feedback loops)
           if (Math.abs(currentShape.props.h - boundedHeight) > 10) {
@@ -366,6 +409,32 @@ class ExcelTableShapeUtil extends BaseBoxShapeUtil {
       }
     }
 
+    const handleSheetChange = (sheetName) => {
+      const editor = this.editor
+      if (!editor) return
+
+      try {
+        const currentShape = editor.getShape(shape.id)
+        if (currentShape && currentShape.props.sheets && currentShape.props.sheets[sheetName]) {
+          editor.batch(() => {
+            editor.updateShape({
+              id: shape.id,
+              type: 'excel-table',
+              props: {
+                ...currentShape.props,
+                data: currentShape.props.sheets[sheetName],
+                currentSheet: sheetName,
+                currentPage: 0, // Reset to first page when switching sheets
+              },
+            })
+          })
+          console.log('Sheet changed to:', sheetName)
+        }
+      } catch (error) {
+        console.error('Error changing sheet:', error)
+      }
+    }
+
     return (
       <HTMLContainer
         style={{
@@ -379,10 +448,18 @@ class ExcelTableShapeUtil extends BaseBoxShapeUtil {
         <ExcelTable
           data={data}
           fileName={fileName}
+          generatedTitle={generatedTitle}
           isLoading={isLoading}
           currentPage={currentPage}
           onPageChange={handlePageChange}
           onHeightChange={handleHeightChange}
+          isAIProcessing={isAIProcessing}
+          aiProgress={aiProgress}
+          aiMessage={aiMessage}
+          sheets={sheets}
+          sheetNames={sheetNames}
+          currentSheet={currentSheet}
+          onSheetChange={handleSheetChange}
         />
       </HTMLContainer>
     )
@@ -494,12 +571,8 @@ class PDFViewerShapeUtil extends BaseBoxShapeUtil {
       try {
         const currentShape = editor.getShape(shape.id)
         if (currentShape) {
-          // Prevent infinite growth with maximum bounds
-          const maxHeight = 1200 // Maximum reasonable height for PDF
-          const minHeight = 400   // Minimum height for PDF
-          
-          // Cap the height and add minimal padding
-          const boundedHeight = Math.min(Math.max(newHeight + 10, minHeight), maxHeight)
+          // Use unified height bounds
+          const boundedHeight = applyHeightBounds(newHeight, 'pdf-viewer')
           
           // Only update if there's a significant difference (prevent feedback loops)
           if (Math.abs(currentShape.props.h - boundedHeight) > 10) {
@@ -560,6 +633,103 @@ class PDFViewerShapeUtil extends BaseBoxShapeUtil {
 }
 
 // Custom Link Shape Utility for website previews
+class ImageShapeUtil extends BaseBoxShapeUtil {
+  static type = 'image'
+
+  getDefaultProps() {
+    return {
+      w: 400,
+      h: 300,
+      fileName: 'Image',
+      fileSize: 0,
+      imageData: null, // Data URL for the image
+      isLoading: false,
+    }
+  }
+
+  // Override resize behavior to maintain aspect ratio
+  onResize(shape, info) {
+    const { initialBounds, scaleX, scaleY } = info
+    
+    // Calculate new dimensions maintaining aspect ratio
+    // Use the larger scale factor to prevent distortion
+    const scale = Math.max(Math.abs(scaleX), Math.abs(scaleY))
+    
+    // Calculate new width and height
+    const newW = Math.max(200, Math.min(1200, initialBounds.w * scale)) // Min 200, max 1200
+    const newH = Math.max(150, Math.min(900, initialBounds.h * scale))   // Min 150, max 900
+    
+    return {
+      ...shape,
+      props: {
+        ...shape.props,
+        w: newW,
+        h: newH,
+      },
+    }
+  }
+
+  component(shape) {
+    const { imageData, fileName, fileSize, isLoading } = shape.props
+
+    const handleHeightChange = (newHeight) => {
+      const editor = this.editor
+      if (!editor) return
+
+      try {
+        const currentShape = editor.getShape(shape.id)
+        if (currentShape) {
+          // Use unified height bounds
+          const boundedHeight = applyHeightBounds(newHeight, 'image')
+          
+          // Only update if there's a significant difference (prevent feedback loops)
+          if (Math.abs(currentShape.props.h - boundedHeight) > 10) {
+            editor.batch(() => {
+              editor.updateShape({
+                id: shape.id,
+                type: 'image',
+                props: {
+                  ...currentShape.props,
+                  h: boundedHeight,
+                },
+              })
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error updating image height:', error)
+      }
+    }
+
+    return (
+      <HTMLContainer 
+        id={shape.id}
+        style={{
+          pointerEvents: 'all',
+          width: shape.props.w,
+          height: shape.props.h,
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <ImageViewer
+          imageData={imageData}
+          fileName={fileName}
+          fileSize={fileSize}
+          isLoading={isLoading}
+          width={shape.props.w}
+          height={shape.props.h}
+          onHeightChange={handleHeightChange}
+        />
+      </HTMLContainer>
+    )
+  }
+
+  indicator(shape) {
+    return <rect width={shape.props.w} height={shape.props.h} />
+  }
+}
+
 class LinkShapeUtil extends BaseBoxShapeUtil {
   static type = 'link'
 
@@ -575,9 +745,31 @@ class LinkShapeUtil extends BaseBoxShapeUtil {
     const { url } = shape.props
 
     const handleHeightChange = (newHeight) => {
-      // Update shape height if needed
-      if (newHeight !== shape.props.h) {
-        // We can't directly update from here, parent handles sizing
+      const editor = this.editor
+      if (!editor) return
+
+      try {
+        const currentShape = editor.getShape(shape.id)
+        if (currentShape) {
+          // Use unified height bounds
+          const boundedHeight = applyHeightBounds(newHeight, 'link')
+          
+          // Only update if there's a significant difference (prevent feedback loops)
+          if (Math.abs(currentShape.props.h - boundedHeight) > 5) {
+            editor.batch(() => {
+              editor.updateShape({
+                id: shape.id,
+                type: 'link',
+                props: {
+                  ...currentShape.props,
+                  h: boundedHeight,
+                },
+              })
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error updating link height:', error)
       }
     }
 
@@ -729,7 +921,7 @@ function GoogleSheetsPasteHandler() {
           
           // Find optimal position to avoid overlaps
           const shapeW = 1600
-          const shapeH = 650
+          const shapeH = calculateExcelHeight([], false, true) // Google Sheets
           const position = findOptimalShapePosition(editor, shapeW, shapeH)
           
           editor.createShape({
@@ -973,28 +1165,44 @@ function ExcelPasteHandler() {
       try {
         console.log('Excel file processing started:', file.name)
 
-        // Process Excel file
+        // Process Excel file with AI enhancement
         const arrayBuffer = await file.arrayBuffer()
         const workbook = XLSX.read(arrayBuffer, { type: 'array' })
         
-        // Get the first worksheet
+        // Step 1: Immediate preview with standard processing
         const worksheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[worksheetName]
+        const standardJsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
+        // Check if workbook has multiple sheets
+        const hasMultipleSheets = workbook.SheetNames.length > 1
+        let sheets = null
+        let sheetNames = []
+        let currentSheet = null
         
-        // Create table shape with first batch of data immediately
-        const batchSize = 50
-        const firstBatch = jsonData.slice(0, batchSize)
+        if (hasMultipleSheets) {
+          // Process all sheets for the dropdown
+          const allSheets = {}
+          workbook.SheetNames.forEach(sheetName => {
+            const ws = workbook.Sheets[sheetName]
+            const jsonData = XLSX.utils.sheet_to_json(ws, { defval: '' })
+            if (jsonData.length > 0) {
+              allSheets[sheetName] = jsonData
+            }
+          })
+          sheets = allSheets
+          sheetNames = Object.keys(allSheets)
+          currentSheet = sheetNames[0]
+        }
         
-        // Generate a unique ID for the shape (TLdraw requires "shape:" prefix)
         const shapeId = `shape:excel_${Date.now()}_${Math.random().toString(36).substring(2)}`
-        
-        // Find optimal position to avoid overlaps
         const shapeW = 1600
         const shapeH = 650
         const position = findOptimalShapePosition(editor, shapeW, shapeH)
+        
+        // Create immediate preview with standard processing
+        const batchSize = 50
+        const firstBatch = standardJsonData.slice(0, batchSize)
         
         editor.createShape({
           id: shapeId,
@@ -1007,9 +1215,175 @@ function ExcelPasteHandler() {
             data: firstBatch,
             fileName: file.name,
             currentPage: 0,
-            isLoading: jsonData.length > batchSize,
+            isLoading: standardJsonData.length > batchSize,
+            isInitialLoading: false,
+            loadingMessage: '📊 Quick Preview',
+            loadingSubMessage: `${standardJsonData.length} rows loaded`,
+            // Include sheet data if available
+            sheets: sheets,
+            sheetNames: sheetNames,
+            currentSheet: currentSheet
           },
         })
+
+        // Center camera on the new shape
+        setTimeout(() => {
+          centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+        }, 100)
+        
+        // Step 2: Start AI processing in background with progress in card
+        // Add AI processing state to shape
+        editor.updateShape({
+          id: shapeId,
+          type: 'excel-table',
+          props: {
+            w: shapeW,
+            h: shapeH,
+            data: firstBatch,
+            fileName: file.name,
+            currentPage: 0,
+            isLoading: standardJsonData.length > batchSize,
+            isInitialLoading: false,
+            loadingMessage: '📊 Quick Preview',
+            loadingSubMessage: `${standardJsonData.length} rows loaded`,
+            isAIProcessing: true,
+            aiProgress: 0,
+            aiMessage: 'Enhancing with AI...',
+            // Include sheet data if available
+            sheets: sheets,
+            sheetNames: sheetNames,
+            currentSheet: currentSheet
+          },
+        })
+        
+        // Background AI processing with progress updates
+        setTimeout(async () => {
+          try {
+            // Simulate progress updates
+            const progressInterval = setInterval(() => {
+              const currentShape = editor.getShape(shapeId)
+              if (currentShape && currentShape.props.isAIProcessing) {
+                const currentProgress = currentShape.props.aiProgress || 0
+                const newProgress = Math.min(currentProgress + 10, 90) // Don't go to 100% until complete
+                
+                editor.updateShape({
+                  id: shapeId,
+                  type: 'excel-table',
+                  props: {
+                    ...currentShape.props,
+                    aiProgress: newProgress,
+                  },
+                })
+              }
+            }, 400) // Update every 400ms
+            
+            const aiProcessingResult = await processExcelWithAI(workbook, file.name)
+            const aiJsonData = aiProcessingResult.data
+            
+            clearInterval(progressInterval)
+            
+            // Log AI processing results
+            if (aiProcessingResult.metadata.source === 'ai') {
+              console.log(`✅ AI successfully processed Excel file with ${aiProcessingResult.metadata.confidence * 100}% confidence`)
+              console.log(`📊 Extracted ${aiProcessingResult.metadata.rowCount} rows`)
+              console.log(`📝 Generated title: "${aiProcessingResult.metadata.generatedTitle}"`)
+              
+              // Update table with AI-enhanced data
+              const aiFirstBatch = aiJsonData.slice(0, batchSize)
+              
+              editor.updateShape({
+                id: shapeId,
+                type: 'excel-table',
+                props: {
+                  w: shapeW,
+                  h: shapeH,
+                  data: aiFirstBatch,
+                  fileName: file.name,
+                  generatedTitle: aiProcessingResult.metadata.generatedTitle,
+                  currentPage: 0,
+                  isLoading: aiJsonData.length > batchSize,
+                  isInitialLoading: false,
+                  loadingMessage: 'AI Enhanced Processing',
+                  loadingSubMessage: `${aiProcessingResult.metadata.rowCount} rows extracted with AI`,
+                  isAIProcessing: false,
+                  aiProgress: 100,
+                  aiMessage: '✅ AI Enhancement Complete',
+                  // Include sheet data if available
+                  sheets: aiProcessingResult.sheets || null,
+                  sheetNames: aiProcessingResult.sheetNames || [],
+                  currentSheet: aiProcessingResult.currentSheet || null
+                },
+              })
+              
+              // Continue with background loading if needed
+              if (aiJsonData.length > batchSize) {
+                Promise.resolve().then(async () => {
+                  const backgroundStartCheck = editor.getShape(shapeId)
+                  if (!backgroundStartCheck) return
+                  
+                  let processedData = [...aiFirstBatch]
+                  
+                  for (let i = batchSize; i < aiJsonData.length; i += batchSize) {
+                    const batch = aiJsonData.slice(i, i + batchSize)
+                    processedData = [...processedData, ...batch]
+                    
+                    const currentShape = editor.getShape(shapeId)
+                    if (currentShape) {
+                      editor.updateShape({
+                        id: shapeId,
+                        type: 'excel-table',
+                        props: {
+                          ...currentShape.props,
+                          data: processedData,
+                          isLoading: i + batchSize < aiJsonData.length,
+                        },
+                      })
+                    }
+                    
+                    if (i + batchSize < aiJsonData.length) {
+                      await new Promise(resolve => setTimeout(resolve, 50))
+                    }
+                  }
+                })
+              }
+              
+            } else {
+              console.log('⚠️ AI processing failed or unavailable, keeping standard results')
+              // Remove AI processing indicator
+              const currentShape = editor.getShape(shapeId)
+              if (currentShape) {
+                editor.updateShape({
+                  id: shapeId,
+                  type: 'excel-table',
+                  props: {
+                    ...currentShape.props,
+                    isAIProcessing: false,
+                    aiProgress: 0,
+                    aiMessage: ''
+                  },
+                })
+              }
+            }
+            
+          } catch (error) {
+            console.error('Background AI processing failed:', error)
+            
+            // Remove AI processing indicator on error
+            const currentShape = editor.getShape(shapeId)
+            if (currentShape) {
+              editor.updateShape({
+                id: shapeId,
+                type: 'excel-table',
+                props: {
+                  ...currentShape.props,
+                  isAIProcessing: false,
+                  aiProgress: 0,
+                  aiMessage: ''
+                },
+              })
+            }
+          }
+        }, 500) // Small delay to show progress bar
         
         // Smoothly center camera on the new shape
         setTimeout(() => {
@@ -1290,17 +1664,18 @@ function App() {
     }
   }
 
-  // Handle TLdraw mounting and register custom file handlers
+  // Handle TLdraw mounting and register custom file and URL handlers
   const handleMount = useCallback((editor) => {
-    // Register external content handler for Excel and PDF files
+    // Register external content handler for files and URLs
     editor.registerExternalContentHandler('files', async (content) => {
       const { files, point } = content
       
-      // Find supported files (Excel and PDF)
+      // Find supported files (Excel, PDF, and Images)
       const excelFiles = files.filter(detectExcelFile)
       const pdfFiles = files.filter(detectPDFFile)
+      const imageFiles = files.filter(detectImageFile)
       
-      if (excelFiles.length === 0 && pdfFiles.length === 0) {
+      if (excelFiles.length === 0 && pdfFiles.length === 0 && imageFiles.length === 0) {
         return // Let TLdraw handle other file types
       }
 
@@ -1424,100 +1799,188 @@ function App() {
 
         console.log('Excel file processing started:', file.name)
 
-        // Process Excel file
+        // Process Excel file with AI enhancement
         const arrayBuffer = await file.arrayBuffer()
         const workbook = XLSX.read(arrayBuffer, { type: 'array' })
         
-        // Get the first worksheet
+        // Step 1: Immediate preview with standard processing
         const worksheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[worksheetName]
+        const standardJsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' })
+        // Check if workbook has multiple sheets
+        const hasMultipleSheets = workbook.SheetNames.length > 1
+        let sheets = null
+        let sheetNames = []
+        let currentSheet = null
         
-        // Create table shape with first batch of data immediately
-        const batchSize = 50
-        const firstBatch = jsonData.slice(0, batchSize)
+        if (hasMultipleSheets) {
+          // Process all sheets for the dropdown
+          const allSheets = {}
+          workbook.SheetNames.forEach(sheetName => {
+            const ws = workbook.Sheets[sheetName]
+            const jsonData = XLSX.utils.sheet_to_json(ws, { defval: '' })
+            if (jsonData.length > 0) {
+              allSheets[sheetName] = jsonData
+            }
+          })
+          sheets = allSheets
+          sheetNames = Object.keys(allSheets)
+          currentSheet = sheetNames[0]
+        }
         
-        // Generate a unique ID for the shape (TLdraw requires "shape:" prefix)
         const shapeId = `shape:excel_${Date.now()}_${Math.random().toString(36).substring(2)}`
+        const shapeW = 1600
+        const shapeH = 650
+        const position = findOptimalShapePosition(editor, shapeW, shapeH)
         
-        // Create shape with explicit ID
+        // Create immediate preview with standard processing
+        const batchSize = 50
+        const firstBatch = standardJsonData.slice(0, batchSize)
+        
         editor.createShape({
           id: shapeId,
           type: 'excel-table',
-          x: centerX - 800, // Half of default width (1600/2)
-          y: centerY - 325, // Half of default height (650/2)
+          x: position.x,
+          y: position.y,
           props: {
-            w: 1600,
-            h: 650,
+            w: shapeW,
+            h: shapeH,
             data: firstBatch,
             fileName: file.name,
             currentPage: 0,
-            isLoading: jsonData.length > batchSize,
+            isLoading: standardJsonData.length > batchSize,
+            isInitialLoading: false,
+            loadingMessage: '📊 Quick Preview',
+            loadingSubMessage: `${standardJsonData.length} rows loaded`,
+            // Include sheet data if available
+            sheets: sheets,
+            sheetNames: sheetNames,
+            currentSheet: currentSheet
+          },
+        })
+
+        // Center camera on the new shape
+        setTimeout(() => {
+          centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+        }, 100)
+        
+        // Step 2: Start AI processing in background with progress in card
+        // Add AI processing state to shape
+        editor.updateShape({
+          id: shapeId,
+          type: 'excel-table',
+          props: {
+            w: shapeW,
+            h: shapeH,
+            data: firstBatch,
+            fileName: file.name,
+            currentPage: 0,
+            isLoading: standardJsonData.length > batchSize,
+            isInitialLoading: false,
+            loadingMessage: '📊 Quick Preview',
+            loadingSubMessage: `${standardJsonData.length} rows loaded`,
+            isAIProcessing: true,
+            aiProgress: 0,
+            aiMessage: 'Enhancing with AI...'
           },
         })
         
-        console.log('Created shape with explicit ID:', shapeId)
-
-        // Immediately verify the shape exists
-        const immediateCheck = editor.getShape(shapeId)
-        console.log('Immediate shape check after creation:', !!immediateCheck, 'ID:', shapeId)
-        
-        // Also list all shapes to debug
-        const allShapes = editor.getCurrentPageShapes()
-        console.log('All shapes after creation:', allShapes.map(s => ({ id: s.id, type: s.type })))
-        
-        console.log('Excel file processed successfully:', firstBatch.length, 'rows loaded immediately, total:', jsonData.length, 'rows')
-        
-        // If there's more data, schedule background loading
-        if (jsonData.length > batchSize) {
-          // Schedule the background loading for after this function returns
-          Promise.resolve().then(async () => {
-            // Check if shape still exists
-            const backgroundStartCheck = editor.getShape(shapeId)
-            if (!backgroundStartCheck) {
-              console.error('Shape not found for background loading:', shapeId)
-              return
-            }
+        // Background AI processing with progress updates
+        setTimeout(async () => {
+          try {
+            // Simulate progress updates
+            const progressInterval = setInterval(() => {
+              const currentShape = editor.getShape(shapeId)
+              if (currentShape && currentShape.props.isAIProcessing) {
+                const currentProgress = currentShape.props.aiProgress || 0
+                const newProgress = Math.min(currentProgress + 10, 90) // Don't go to 100% until complete
+                
+                editor.updateShape({
+                  id: shapeId,
+                  type: 'excel-table',
+                  props: {
+                    ...currentShape.props,
+                    aiProgress: newProgress,
+                  },
+                })
+              }
+            }, 400) // Update every 400ms
             
-            let processedData = [...firstBatch]
+            const aiProcessingResult = await processExcelWithAI(workbook, file.name)
+            const aiJsonData = aiProcessingResult.data
             
-            for (let i = batchSize; i < jsonData.length; i += batchSize) {
-              const batch = jsonData.slice(i, i + batchSize)
-              processedData = [...processedData, ...batch]
+            clearInterval(progressInterval)
+            
+            // Log AI processing results
+            if (aiProcessingResult.metadata.source === 'ai') {
+              console.log(`✅ AI successfully processed Excel file with ${aiProcessingResult.metadata.confidence * 100}% confidence`)
+              console.log(`📊 Extracted ${aiProcessingResult.metadata.rowCount} rows`)
+              console.log(`📝 Generated title: "${aiProcessingResult.metadata.generatedTitle}"`)
               
-              // Update the shape with new data
-              try {
-                const currentShape = editor.getShape(shapeId)
-                if (currentShape) {
-                  editor.updateShape({
-                    id: shapeId,
-                    type: 'excel-table',
-                    props: {
-                      ...currentShape.props,
-                      data: processedData,
-                      isLoading: i + batchSize < jsonData.length,
-                    },
-                  })
-
-                } else {
-                  console.error('Shape not found for update, ID:', shapeId)
-                  break
-                }
-              } catch (error) {
-                console.error('Error updating shape:', error)
-                break
+              // Update table with AI-enhanced data
+              const aiFirstBatch = aiJsonData.slice(0, batchSize)
+              
+              editor.updateShape({
+                id: shapeId,
+                type: 'excel-table',
+                props: {
+                  w: shapeW,
+                  h: shapeH,
+                  data: aiFirstBatch,
+                  fileName: file.name,
+                  generatedTitle: aiProcessingResult.metadata.generatedTitle,
+                  currentPage: 0,
+                  isLoading: aiJsonData.length > batchSize,
+                  isInitialLoading: false,
+                  loadingMessage: 'AI Enhanced Processing',
+                  loadingSubMessage: `${aiProcessingResult.metadata.rowCount} rows extracted with AI`,
+                  isAIProcessing: false,
+                  aiProgress: 100,
+                  aiMessage: '✅ AI Enhancement Complete',
+                  // Include sheet data if available
+                  sheets: aiProcessingResult.sheets || null,
+                  sheetNames: aiProcessingResult.sheetNames || [],
+                  currentSheet: aiProcessingResult.currentSheet || null
+                },
+              })
+              
+              // Continue with background loading if needed
+              if (aiJsonData.length > batchSize) {
+                Promise.resolve().then(async () => {
+                  const backgroundStartCheck = editor.getShape(shapeId)
+                  if (!backgroundStartCheck) return
+                  
+                  let processedData = [...aiFirstBatch]
+                  
+                  for (let i = batchSize; i < aiJsonData.length; i += batchSize) {
+                    const batch = aiJsonData.slice(i, i + batchSize)
+                    processedData = [...processedData, ...batch]
+                    
+                    const currentShape = editor.getShape(shapeId)
+                    if (currentShape) {
+                      editor.updateShape({
+                        id: shapeId,
+                        type: 'excel-table',
+                        props: {
+                          ...currentShape.props,
+                          data: processedData,
+                          isLoading: i + batchSize < aiJsonData.length,
+                        },
+                      })
+                    }
+                    
+                    if (i + batchSize < aiJsonData.length) {
+                      await new Promise(resolve => setTimeout(resolve, 50))
+                    }
+                  }
+                })
               }
               
-              // Add small delay to show progressive loading
-              if (i + batchSize < jsonData.length) {
-                await new Promise(resolve => setTimeout(resolve, 50))
-              }
-            }
-            
-            // Final update to mark loading complete
-            try {
+            } else {
+              console.log('⚠️ AI processing failed or unavailable, keeping standard results')
+              
+              // Remove AI processing indicator
               const currentShape = editor.getShape(shapeId)
               if (currentShape) {
                 editor.updateShape({
@@ -1525,25 +1988,50 @@ function App() {
                   type: 'excel-table',
                   props: {
                     ...currentShape.props,
-                    data: processedData,
-                    isLoading: false,
+                    isAIProcessing: false,
+                    aiProgress: 0,
+                    aiMessage: ''
                   },
                 })
-                console.log('Background loading completed:', processedData.length, 'total rows')
-              } else {
-                console.error('Shape not found for final update, ID:', shapeId)
               }
-            } catch (error) {
-              console.error('Error marking loading complete:', error)
+              
+              // Continue with standard processing for background loading if needed
+              if (standardJsonData.length > batchSize) {
+                Promise.resolve().then(async () => {
+                  const backgroundStartCheck = editor.getShape(shapeId)
+                  if (!backgroundStartCheck) return
+                  
+                  let processedData = [...firstBatch]
+                  
+                  for (let i = batchSize; i < standardJsonData.length; i += batchSize) {
+                    const batch = standardJsonData.slice(i, i + batchSize)
+                    processedData = [...processedData, ...batch]
+                    
+                    const currentShape = editor.getShape(shapeId)
+                    if (currentShape) {
+                      editor.updateShape({
+                        id: shapeId,
+                        type: 'excel-table',
+                        props: {
+                          ...currentShape.props,
+                          data: processedData,
+                          isLoading: i + batchSize < standardJsonData.length,
+                        },
+                      })
+                    }
+                    
+                    if (i + batchSize < standardJsonData.length) {
+                      await new Promise(resolve => setTimeout(resolve, 50))
+                    }
+                  }
+                })
+              }
             }
-          })
-        }
-
-        console.log('Excel file processed successfully:', firstBatch.length, 'rows loaded immediately, total:', jsonData.length, 'rows')
-        
-        // Set final loading state if no background loading needed
-        if (jsonData.length <= batchSize) {
-          try {
+            
+          } catch (error) {
+            console.error('Background AI processing failed:', error)
+            
+            // Remove AI processing indicator on error
             const currentShape = editor.getShape(shapeId)
             if (currentShape) {
               editor.updateShape({
@@ -1551,15 +2039,14 @@ function App() {
                 type: 'excel-table',
                 props: {
                   ...currentShape.props,
-                  isLoading: false,
+                  isAIProcessing: false,
+                  aiProgress: 0,
+                  aiMessage: ''
                 },
               })
-              console.log('Small file - no background loading needed')
             }
-          } catch (error) {
-            console.error('Error setting initial loading complete:', error)
           }
-        }
+        }, 500) // Small delay to show progress bar
         
         // Tell TLdraw we handled this content by returning VoidResult
         return { type: 'void' }
@@ -1569,6 +2056,308 @@ function App() {
           return // Let TLdraw handle the error
         }
       }
+
+      // Process Image files (if any)
+      if (imageFiles.length > 0) {
+        const file = imageFiles[0]
+        
+        try {
+          console.log('Image file processing started:', file.name)
+          
+          const shapeId = `shape:image_${Date.now()}_${Math.random().toString(36).substring(2)}`
+          
+          // Find optimal position to avoid overlaps
+          const shapeW = 400
+          const shapeH = 300
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          // Create image shape immediately while loading
+          editor.createShape({
+            id: shapeId,
+            type: 'image',
+            x: position.x,
+            y: position.y,
+            props: {
+              fileName: file.name,
+              fileSize: file.size,
+              imageData: null,
+              isLoading: true,
+              w: shapeW,
+              h: shapeH,
+            },
+          })
+
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100)
+
+          // Process image file in background
+          setTimeout(async () => {
+            try {
+              // Convert file to data URL
+              const reader = new FileReader()
+              
+              reader.onload = (e) => {
+                const imageData = e.target.result
+                
+                // Create a temporary image to get dimensions
+                const img = new Image()
+                img.onload = () => {
+                  // Calculate optimal size maintaining aspect ratio
+                  const maxWidth = 800
+                  const maxHeight = 600
+                  let newWidth = img.naturalWidth
+                  let newHeight = img.naturalHeight
+                  
+                  // Scale down if too large
+                  if (newWidth > maxWidth || newHeight > maxHeight) {
+                    const widthRatio = maxWidth / newWidth
+                    const heightRatio = maxHeight / newHeight
+                    const scale = Math.min(widthRatio, heightRatio)
+                    
+                    newWidth = Math.round(newWidth * scale)
+                    newHeight = Math.round(newHeight * scale)
+                  }
+                  
+                  // Ensure minimum size
+                  newWidth = Math.max(newWidth, 200)
+                  newHeight = Math.max(newHeight, 150)
+                  
+                  // Update shape with image data and optimal dimensions
+                  const currentShape = editor.getShape(shapeId)
+                  if (currentShape) {
+                    editor.updateShape({
+                      id: shapeId,
+                      type: 'image',
+                      props: {
+                        ...currentShape.props,
+                        imageData: imageData,
+                        isLoading: false,
+                        w: newWidth,
+                        h: newHeight,
+                      },
+                    })
+                    console.log('Image processed successfully:', file.name, `${newWidth}x${newHeight}`)
+                  }
+                }
+                
+                img.onerror = () => {
+                  // Handle image load error
+                  const currentShape = editor.getShape(shapeId)
+                  if (currentShape) {
+                    editor.updateShape({
+                      id: shapeId,
+                      type: 'image',
+                      props: {
+                        ...currentShape.props,
+                        isLoading: false,
+                        imageData: null,
+                      },
+                    })
+                  }
+                  console.error('Error loading image:', file.name)
+                }
+                
+                img.src = imageData
+              }
+              
+              reader.onerror = () => {
+                console.error('Error reading image file:', file.name)
+                const currentShape = editor.getShape(shapeId)
+                if (currentShape) {
+                  editor.updateShape({
+                    id: shapeId,
+                    type: 'image',
+                    props: {
+                      ...currentShape.props,
+                      isLoading: false,
+                      imageData: null,
+                    },
+                  })
+                }
+              }
+              
+              reader.readAsDataURL(file)
+              
+            } catch (error) {
+              console.error('Error processing image file:', error)
+              const currentShape = editor.getShape(shapeId)
+              if (currentShape) {
+                editor.updateShape({
+                  id: shapeId,
+                  type: 'image',
+                  props: {
+                    ...currentShape.props,
+                    isLoading: false,
+                    imageData: null,
+                  },
+                })
+              }
+            }
+          }, 100)
+
+          return { type: 'image', fileName: file.name, fileSize: file.size }
+          
+        } catch (error) {
+          console.error('Error processing image file:', error)
+          return // Let TLdraw handle the error
+        }
+      }
+    })
+
+    // Register external content handler for URLs (right-click paste)
+    editor.registerExternalContentHandler('url', async (content) => {
+      const { url } = content
+      
+      if (!url) return
+      
+      try {
+        // Handle different URL types the same way as our paste handlers
+        if (detectYouTubeURL(url)) {
+          // Create YouTube embed
+          const shapeW = 560
+          const shapeH = 315
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          editor.createShape({
+            type: 'embed',
+            x: position.x,
+            y: position.y,
+            props: {
+              url: url,
+              w: shapeW,
+              h: shapeH,
+            },
+          })
+          
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100)
+          
+          console.log('YouTube video embedded (right-click):', url)
+          return { type: 'embed', url, w: shapeW, h: shapeH }
+          
+        } else if (detectGoogleSheetsURL(url)) {
+          // Handle Google Sheets URL with full data fetching
+          const shapeId = `shape:excel_${Date.now()}_${Math.random().toString(36).substring(2)}`
+          const shapeW = 1600
+          const shapeH = 650
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          editor.createShape({
+            id: shapeId,
+            type: 'excel-table',
+            x: position.x,
+            y: position.y,
+            props: {
+              w: shapeW,
+              h: shapeH,
+              data: [],
+              fileName: 'Google Sheet',
+              currentPage: 0,
+              isLoading: true,
+            },
+          })
+          
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100)
+          
+          // Fetch Google Sheets data in background (same logic as paste handler)
+          setTimeout(async () => {
+            try {
+              const csvUrl = getGoogleSheetsCsvUrl(url)
+              if (!csvUrl) return
+              
+              // Try fetching data with fallback logic
+              let csvData = null
+              const proxies = [
+                `https://corsproxy.io/?${encodeURIComponent(csvUrl)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(csvUrl)}`,
+                `https://cors-anywhere.herokuapp.com/${csvUrl}`,
+                `https://api.allorigins.win/get?url=${encodeURIComponent(csvUrl)}`
+              ]
+              
+              for (const proxyUrl of proxies) {
+                try {
+                  const response = await fetch(proxyUrl)
+                  if (response.ok) {
+                    csvData = await response.text()
+                    if (proxyUrl.includes('allorigins.win')) {
+                      const jsonResponse = JSON.parse(csvData)
+                      csvData = jsonResponse.contents
+                    }
+                    break
+                  }
+                } catch (error) {
+                  continue
+                }
+              }
+              
+              if (csvData) {
+                // Parse CSV and update shape
+                const lines = csvData.split('\n').filter(line => line.trim())
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+                const jsonData = lines.slice(1).map(line => {
+                  const values = line.split(',').map(v => v.replace(/"/g, '').trim())
+                  const obj = {}
+                  headers.forEach((header, index) => {
+                    obj[header] = values[index] || ''
+                  })
+                  return obj
+                })
+                
+                editor.updateShape({
+                  id: shapeId,
+                  type: 'excel-table',
+                  props: {
+                    data: jsonData,
+                    fileName: 'Google Sheet',
+                    currentPage: 0,
+                    isLoading: false,
+                  },
+                })
+              }
+            } catch (error) {
+              console.error('Error fetching Google Sheets data (right-click):', error)
+            }
+          }, 100)
+          
+          console.log('Google Sheets processing (right-click):', url)
+          return { type: 'excel-table', url, w: shapeW, h: shapeH }
+          
+        } else if (detectGenericWebsiteURL(url)) {
+          // Create our custom link shape for all other websites
+          const shapeW = 400
+          const shapeH = 80
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          editor.createShape({
+            type: 'link',
+            x: position.x,
+            y: position.y,
+            props: {
+              url: url,
+              w: shapeW,
+              h: shapeH,
+            },
+          })
+          
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100)
+          
+          console.log('Website link created (right-click):', url)
+          return { type: 'link', url, w: shapeW, h: shapeH }
+        }
+        
+        // For other URLs (like Figma, Twitter, etc.), let TLDraw handle them natively
+        return
+        
+      } catch (error) {
+        console.error('Error handling URL in external content handler:', error)
+        return
+      }
     })
   }, [])
 
@@ -1577,7 +2366,7 @@ function App() {
       <div style={{ position: 'fixed', inset: 0 }} onKeyDown={handleKeyDown}>
         <Header />
         <Tldraw
-          shapeUtils={[ExcelTableShapeUtil, PDFViewerShapeUtil, LinkShapeUtil]}
+          shapeUtils={[ExcelTableShapeUtil, PDFViewerShapeUtil, ImageShapeUtil, LinkShapeUtil]}
           onMount={handleMount}
           components={{
             NavigationPanel: null,

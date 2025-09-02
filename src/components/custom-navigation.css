@@ -17,7 +17,7 @@
   padding: 8px;
   min-width: 220px;
   margin-bottom: 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
 }
 
 .zoom-menu-item {
@@ -86,7 +86,7 @@
   cursor: pointer;
   transition: all 0.2s;
   padding: 0 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
   letter-spacing: normal;
 }
 
@@ -141,12 +141,12 @@
   display: none !important;
 }
 
-/* Override TLDraw font families to use Poppins everywhere */
+/* Override TLDraw font families to use Inter everywhere */
 .tl-container {
-  --tl-font-draw: 'Poppins', sans-serif !important;
-  --tl-font-sans: 'Poppins', sans-serif !important;
-  --tl-font-serif: 'Poppins', serif !important;
-  --tl-font-mono: 'Poppins', monospace !important;
+  --tl-font-draw: 'Inter', sans-serif !important;
+  --tl-font-sans: 'Inter', sans-serif !important;
+  --tl-font-serif: 'Inter', serif !important;
+  --tl-font-mono: 'Inter', monospace !important;
 }
 
 /* Additional text styling overrides */
@@ -154,14 +154,14 @@
 .tl-text-wrapper[data-font='sans'],
 .tl-text-wrapper[data-font='serif'],
 .tl-text-wrapper[data-font='mono'] {
-  font-family: 'Poppins', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 .tl-text,
 .tl-text-input,
 .tl-text-content,
 .tl-text-shape-label {
-  font-family: 'Poppins', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 /* Hide ALL resize handles on canvas - comprehensive approach */
@@ -184,15 +184,28 @@
 /* Define card radius variable for consistency */
 :root {
   --selection-radius: 12px; /* Matches --card-radius from card-shadows.css */
+  --selection-stroke-width: 2px; /* Consistent stroke width for all states */
+  --selection-color: #1d4ed8; /* Consistent blue color for all selection states */
 }
 
-/* Apply consistent 12px corner radius to selection and hover rect elements only */
+/* Apply consistent 12px corner radius and stroke width to selection and hover rect elements */
 .tl-selection__fg__outline rect,
 .tl-shape-indicator rect,
 .tl-user-indicator rect,
 .tl-collaborator__shape-indicator rect {
   rx: var(--selection-radius) !important;
   ry: var(--selection-radius) !important;
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
+}
+
+/* Ensure consistent stroke width for all selection states */
+.tl-selection__fg__outline,
+.tl-shape-indicator,
+.tl-user-indicator,
+.tl-collaborator__shape-indicator {
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
 }
 
 /* Fallback for any additional indicator rect elements */
@@ -200,4 +213,32 @@
 [class*="selection"] rect {
   rx: var(--selection-radius) !important;
   ry: var(--selection-radius) !important;
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
+}
+
+/* Ensure consistent stroke width for all selection-related elements */
+[class*="indicator"],
+[class*="selection"] {
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
+}
+
+/* Override any inline stroke-width attributes */
+rect[stroke-width="1"] {
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
+}
+
+/* Override any inline stroke color attributes */
+rect[stroke] {
+  stroke: var(--selection-color) !important;
+}
+
+/* Ensure all shape indicators have consistent stroke width */
+.tl-shape-indicator rect,
+.tl-user-indicator rect,
+.tl-collaborator__shape-indicator rect {
+  stroke-width: var(--selection-stroke-width) !important;
+  stroke: var(--selection-color) !important;
 }

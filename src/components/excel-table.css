@@ -2,13 +2,17 @@
   background: white;
   border-radius: 12px;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
-  height: 100%;
-  font-family: 'Poppins', sans-serif;
+  height: auto;
+  min-height: 300px;
+  max-height: none;
+  font-family: 'Inter', sans-serif;
   position: relative;
   display: flex;
   flex-direction: column;
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 /* Header section */
@@ -19,6 +23,53 @@
   padding: 12px 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #e9ecef;
+  border-radius: 12px 12px 0 0;
+}
+
+/* Controls section for sheets and pagination */
+.excel-table-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: 8px;
+}
+
+/* Sheet selector */
+.sheet-selector {
+  display: flex;
+  align-items: center;
+}
+
+.sheet-dropdown {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  padding: 0 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  min-width: 120px;
+  max-width: 180px;
+  outline: none;
+  transition: all 0.2s;
+  height: 24px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.sheet-dropdown:hover {
+  background: #f8f9fa;
+  border-color: #e0e0e0;
+}
+
+.sheet-dropdown:focus {
+  background: #f8f9fa;
+  border-color: #e0e0e0;
+  outline: none;
 }
 
 .file-info {
@@ -112,13 +163,16 @@
 
 /* Table content */
 .table-content {
-  flex: 1;
   overflow-x: overlay;
-  overflow-y: hidden;
+  overflow-y: visible;
   position: relative;
   width: 100%;
+  height: auto;
   min-height: 0;
   box-sizing: border-box;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-radius: 0 0 12px 12px;
 }
 
 .excel-data-table {
@@ -126,18 +180,19 @@
   border-collapse: collapse;
   font-size: 12px;
   letter-spacing: normal;
-  table-layout: auto;
-  border-radius: 8px;
+  table-layout: fixed;
+  border-radius: 0 0 12px 12px;
   overflow: visible;
   margin: 0;
   padding: 0;
   width: fit-content;
   min-width: 100%;
+  margin-bottom: 0;
 }
 
 .table-header {
   background: #f8f9fa;
-  padding: 12px 16px;
+  padding: 16px 16px;
   text-align: left;
   font-weight: 600;
   font-size: 12px;
@@ -149,11 +204,12 @@
   white-space: normal;
   text-transform: none;
   letter-spacing: 0.1px;
-  line-height: 1.3;
+  line-height: 1.5;
   word-break: keep-all;
   hyphens: none;
   vertical-align: top;
   width: auto;
+  min-height: 60px; /* Increased minimum height */
 }
 
 /* Column type classes for intelligent sizing */
@@ -166,9 +222,9 @@
 
 .table-header.col-medium,
 .table-cell.col-medium {
-  width: 150px;
+  width: 140px;
   min-width: 120px;
-  max-width: 200px;
+  max-width: 180px;
 }
 
 .table-header.col-long,
@@ -185,6 +241,7 @@
 .table-cell.col-auto {
   width: auto;
   min-width: 100px;
+  max-width: 180px;
 }
 
 .table-header:last-child {
@@ -192,18 +249,19 @@
 }
 
 .table-cell {
-  padding: 12px 16px;
+  padding: 16px 16px;
   border-right: 1px solid #f0f0f0;
   color: #333;
   font-size: 12px;
   white-space: nowrap;
-  overflow: visible;
+  overflow: hidden;
+  text-overflow: ellipsis;
   letter-spacing: normal;
   text-align: left;
-  line-height: 1.4;
+  line-height: 1.5;
   word-wrap: break-word;
   vertical-align: top;
-  width: auto;
+  min-height: 60px; /* Increased minimum height */
 }
 
 .table-cell:last-child {
@@ -239,10 +297,14 @@
 
 .even-row {
   background: #ffffff;
+  margin-bottom: 0;
+  min-height: 60px; /* Increased minimum height */
 }
 
 .odd-row {
   background: #f8f9fa;
+  margin-bottom: 0;
+  min-height: 50px;
 }
 
 .even-row:hover,
@@ -267,6 +329,17 @@
   z-index: 6;
 }
 
+/* Remove any extra space at the bottom of the table */
+.excel-data-table tbody tr:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.excel-data-table tbody tr:last-child .table-cell {
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+
 /* Global card styling - soft diffuse shadow 
    Usage: Apply .soft-card-shadow class to any white card elements for consistent styling
    Shadow: Large diffuse glow effect with display-p3 color space support
@@ -280,21 +353,7 @@
 }
 
 /* Improve the overall card styling */
-.excel-table-container {
-  border-radius: 12px;
-  box-shadow: none;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  background: white;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  width: 100%;
-  height: 100%;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  box-sizing: border-box;
-}
+/* Removed duplicate rule that was causing overflow issues */
 
 .excel-table-header {
   background: #f8f9fa;
@@ -304,6 +363,7 @@
   justify-content: space-between;
   align-items: center;
   min-height: 60px;
+  border-radius: 12px 12px 0 0;
 }
 
 .file-info {
@@ -452,6 +512,125 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* AI Processing Progress */
+.excel-ai-progress {
+  border-top: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  background-color: #fafafa;
+  border-radius: 0 0 12px 12px;
+}
+
+.ai-progress-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-progress-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.ai-progress-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-progress-message {
+  font-size: 12px;
+  font-weight: 500;
+  color: #4A90E2;
+  font-family: 'Inter', sans-serif;
+}
+
+.ai-progress-percentage {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  min-width: 30px;
+  text-align: right;
+  font-family: 'Inter', sans-serif;
+}
+
+.ai-progress-track {
+  width: 100%;
+  height: 4px;
+  background-color: #e8e8e8;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.ai-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4A90E2 0%, #357ABD 100%);
+  border-radius: 2px;
+  transition: width 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Additional responsive adjustments for AI progress */
+@media (max-width: 768px) {
+  .excel-ai-progress {
+    padding: 10px 12px;
+  }
+  
+  .ai-progress-message {
+    font-size: 11px;
+  }
+  
+  .ai-progress-percentage {
+    font-size: 10px;
   }
 }
 

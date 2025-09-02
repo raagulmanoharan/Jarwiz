@@ -11,7 +11,7 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 - **Excel & PDF Cards** - Drag & drop Excel and PDF files to create beautiful, paginated cards with progressive loading
 - **Zoom Controls** - Custom zoom controls positioned at bottom-left
 - **Editable Board Title** - Click to rename your board inline
-- **Consistent Design** - Poppins font, rounded corners, and cohesive styling
+- **Consistent Design** - Inter font, rounded corners, and cohesive styling
 
 ## Quick Start
 
@@ -129,7 +129,7 @@ A modern infinite canvas drawing application built with TLdraw SDK, featuring a 
 
 ## Design System
 
-- **Font**: Poppins (400, 500, 600 weights)
+- **Font**: Inter (400, 500, 600 weights)
 - **Text Color**: #202020
 - **Canvas Background**: #EFEFEF
 - **Border Radius**: 12px

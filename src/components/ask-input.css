@@ -26,7 +26,7 @@
   border: none;
   outline: none;
   background: transparent;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 400;
   color: #202020;
@@ -138,7 +138,7 @@
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 400;
   color: #202020;
@@ -180,7 +180,7 @@
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   padding: 2px 8px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 11px;
   font-weight: 500;
   color: #666;

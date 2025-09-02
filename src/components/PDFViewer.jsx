@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import LoadingCard from './LoadingCard'
+import { calculateCardHeight } from '../utils/heightCalculator'
 import './pdf-viewer.css'
 
 // Configure PDF.js worker for Vite development
@@ -38,18 +39,13 @@ const PDFViewer = ({
   const [loadError, setLoadError] = useState(null)
   const containerRef = useRef(null)
 
-  // Simple height calculation exactly like Excel cards
+  // Unified height calculation
   useEffect(() => {
     if (onHeightChange && pageHeight) {
-      // Calculate expected height based on content (same pattern as Excel)
-      const headerHeight = 80  // Header with file info and pagination
-      const contentHeight = pageHeight // Actual PDF page height
-      const totalHeight = headerHeight + contentHeight + 70 // padding
-      
-      // Only report a calculated height to prevent measurement loops
-      onHeightChange(totalHeight)
+      const height = calculateCardHeight('pdf-viewer', { pageHeight })
+      onHeightChange(height)
     }
-  }, [pageHeight, onHeightChange]) // Same dependencies pattern as Excel
+  }, [pageHeight, onHeightChange])
 
   // Show loading card if initially loading (after all hooks)
   if (isInitialLoading) {

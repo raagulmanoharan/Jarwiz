@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { calculateCardHeight } from '../utils/heightCalculator'
 import './link-shape.css'
 
 // Get fallback metadata when fetching fails
@@ -168,9 +169,9 @@ const LinkPreview = ({ url, onHeightChange }) => {
   }, [url])
 
   useEffect(() => {
-    // Notify parent of height change
+    // Notify parent of height change using unified calculation
     if (onHeightChange) {
-      const height = 80 // Fixed height for link previews
+      const height = calculateCardHeight('link')
       onHeightChange(height)
     }
   }, [onHeightChange])

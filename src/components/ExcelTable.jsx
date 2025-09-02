@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import LoadingCard from './LoadingCard'
+import { calculateCardHeight } from '../utils/heightCalculator'
 import './excel-table.css'
 
 function ExcelTable({ 
   data, 
   fileName, 
+  generatedTitle,
   isLoading = false, 
   currentPage = 0, 
   onPageChange, 
@@ -12,7 +14,14 @@ function ExcelTable({
   isInitialLoading = false,
   loadingMessage = 'Loading...',
   loadingSubMessage = '',
-  fileType = 'file'
+  fileType = 'file',
+  isAIProcessing = false,
+  aiProgress = 0,
+  aiMessage = '',
+  sheets = null,
+  sheetNames = [],
+  currentSheet = null,
+  onSheetChange = null
 }) {
   const [itemsPerPage] = useState(10)
   const containerRef = useRef(null)
@@ -47,7 +56,9 @@ function ExcelTable({
         
         if (headerLower.includes('name') || headerLower.includes('title') || 
             headerLower.includes('category') || headerLower.includes('type') ||
-            headerLower.includes('status') || headerLower.includes('record')) {
+            headerLower.includes('status') || headerLower.includes('record') ||
+            headerLower.includes('sentiment') || headerLower.includes('rating') ||
+            headerLower.includes('priority') || headerLower.includes('level')) {
           return 'col-medium'
         }
         
@@ -103,19 +114,18 @@ function ExcelTable({
 
 
 
-  // Simplified height calculation to prevent infinite loops
+  // Unified height calculation
   useEffect(() => {
     if (onHeightChange) {
-      // Calculate expected height based on content
-      const headerHeight = 80  // Header with file info and pagination
-      const rowHeight = 50     // Approximate height per row with better spacing
-      const visibleRows = Math.min(currentData.length, itemsPerPage)
-      const tableHeight = headerHeight + (visibleRows * rowHeight) + 70 // padding
-      
-      // Only report a calculated height to prevent measurement loops
-      onHeightChange(tableHeight)
+      const hasMultipleSheets = sheetNames && sheetNames.length > 1
+      const height = calculateCardHeight('excel-table', {
+        data,
+        hasMultipleSheets,
+        isAIProcessing
+      })
+      onHeightChange(height)
     }
-  }, [data.length, currentPage, itemsPerPage]) // Remove onHeightChange from dependencies
+  }, [data.length, sheetNames, isAIProcessing, onHeightChange])
 
 
 
@@ -144,24 +154,50 @@ function ExcelTable({
             </svg>
           </div>
           <div className="file-details">
-            <span className="file-name">{fileName}</span>
+            <span className="file-name">{generatedTitle || fileName}</span>
             <span className="file-size">
               {data.length > 0 ? (isLoading ? `${data.length}+ rows` : `${data.length} rows`) : 'Loading...'}
             </span>
           </div>
         </div>
         
-        {data.length > 0 && totalPages > 1 && (
-          <div className="pagination-info">
-            <div className="pagination-display">
-              {isLoading && (
-                <div className="pagination-loading">
-                  <div className="loading-spinner tiny"></div>
-                </div>
-              )}
-              <span>{currentPage + 1}/{totalPages}</span>
+        <div className="excel-table-controls">
+          {/* Sheet Selector - Only show if multiple sheets */}
+          {sheetNames && sheetNames.length > 1 && (
+            <div className="sheet-selector">
+              <select 
+                value={currentSheet || sheetNames[0]}
+                onChange={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if (onSheetChange) {
+                    onSheetChange(e.target.value)
+                  }
+                }}
+                className="sheet-dropdown"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {sheetNames.map(sheetName => (
+                  <option key={sheetName} value={sheetName}>
+                    {sheetName}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="pagination-controls">
+          )}
+          
+          {/* Pagination - Only show if multiple pages */}
+          {data.length > 0 && totalPages > 1 && (
+            <div className="pagination-info">
+              <div className="pagination-display">
+                {isLoading && (
+                  <div className="pagination-loading">
+                    <div className="loading-spinner tiny"></div>
+                  </div>
+                )}
+                <span>{currentPage + 1}/{totalPages}</span>
+              </div>
+              <div className="pagination-controls">
               <button 
                 onMouseDown={(e) => {
                   e.preventDefault()
@@ -208,7 +244,8 @@ function ExcelTable({
               </button>
             </div>
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Table content */}
@@ -243,6 +280,35 @@ function ExcelTable({
           </table>
         )}
       </div>
+      
+      {/* AI Processing Progress */}
+      {isAIProcessing && (
+        <div className="excel-ai-progress">
+          <div className="ai-progress-content">
+            <div className="ai-progress-header">
+              <div className="ai-progress-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" fill="#4A90E2" opacity="0.2"/>
+                  <circle cx="12" cy="12" r="3" fill="#4A90E2"/>
+                </svg>
+              </div>
+              <div className="ai-progress-text">
+                <span className="ai-progress-message">{aiMessage}</span>
+              </div>
+              <div className="ai-progress-percentage">
+                {Math.round(aiProgress)}%
+              </div>
+            </div>
+            
+            <div className="ai-progress-track">
+              <div 
+                className="ai-progress-fill" 
+                style={{ width: `${aiProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

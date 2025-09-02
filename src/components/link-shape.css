@@ -4,12 +4,13 @@
   height: 100%;
   display: flex;
   align-items: center;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
   /* Styling now handled by card-shadows.css for consistency */
   padding: 12px 16px;
   box-sizing: border-box;
   pointer-events: all;
   position: relative;
+  border-radius: 12px;
 }
 
 .link-block {

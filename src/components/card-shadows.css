@@ -55,6 +55,14 @@
   /* NO border property - let TLDraw handle selection outlines */
 }
 
+/* Image Viewer Cards */
+.image-viewer-container {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
 /* Loading Cards */
 .loading-card-container {
   box-shadow: var(--card-shadow) !important;
@@ -89,6 +97,13 @@
 }
 
 .tl-shape[data-shape-type="link"] {
+  box-shadow: var(--card-shadow) !important;
+  border-radius: var(--card-radius) !important;
+  background: var(--card-background) !important;
+  /* NO border property - let TLDraw handle selection outlines */
+}
+
+.tl-shape[data-shape-type="image"] {
   box-shadow: var(--card-shadow) !important;
   border-radius: var(--card-radius) !important;
   background: var(--card-background) !important;
