@@ -18,7 +18,10 @@ function ImageViewer({
   // Unified height calculation
   useEffect(() => {
     if (onHeightChange && imageDimensions.height > 0) {
-      const height = calculateCardHeight('image', { imageHeight: imageDimensions.height })
+      const height = calculateCardHeight('image', { 
+        imageHeight: imageDimensions.height,
+        isLoading: !imageDimensions.height
+      })
       onHeightChange(height)
     }
   }, [imageDimensions.height, onHeightChange])

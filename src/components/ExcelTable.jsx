@@ -121,7 +121,8 @@ function ExcelTable({
       const height = calculateCardHeight('excel-table', {
         data,
         hasMultipleSheets,
-        isAIProcessing
+        isAIProcessing,
+        isLoading: data.length === 0 && !isAIProcessing
       })
       onHeightChange(height)
     }

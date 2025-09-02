@@ -42,10 +42,13 @@ const PDFViewer = ({
   // Unified height calculation
   useEffect(() => {
     if (onHeightChange && pageHeight) {
-      const height = calculateCardHeight('pdf-viewer', { pageHeight })
+      const height = calculateCardHeight('pdf-viewer', { 
+        pageHeight,
+        isLoading: !fileData
+      })
       onHeightChange(height)
     }
-  }, [pageHeight, onHeightChange])
+  }, [pageHeight, fileData, onHeightChange])
 
   // Show loading card if initially loading (after all hooks)
   if (isInitialLoading) {

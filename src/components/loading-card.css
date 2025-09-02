@@ -34,6 +34,8 @@
   border-top: 2px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  display: block;
+  margin: 0 auto;
 }
 
 @keyframes spin {

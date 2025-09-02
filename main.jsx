@@ -737,7 +737,7 @@ class LinkShapeUtil extends BaseBoxShapeUtil {
     return {
       url: '',
       w: 400,
-      h: 80,
+      h: 300, // Increased default height for enhanced link cards
     }
   }
 
@@ -1092,8 +1092,42 @@ function WebsitePasteHandler() {
       const pastedText = clipboardData.getData('text')
       if (!pastedText) return
 
-      // Check if it's a generic website URL (not YouTube or Google Sheets)
-      if (detectGenericWebsiteURL(pastedText)) {
+      // Check if it's a native embed URL (Figma, Twitter, etc.)
+      if (detectTLDrawNativeEmbed(pastedText)) {
+        // Prevent both default browser behavior and TLdraw's built-in paste handling
+        e.preventDefault()
+        e.stopPropagation()
+        e.stopImmediatePropagation()
+        
+        try {
+          // Find optimal position to avoid overlaps
+          const shapeW = 560
+          const shapeH = 315
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          editor.createShape({
+            type: 'embed',
+            x: position.x,
+            y: position.y,
+            props: {
+              url: pastedText,
+              w: shapeW,
+              h: shapeH,
+            },
+          })
+          
+          // Smoothly center camera on the new shape
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100) // Small delay to ensure shape is created
+          
+          console.log('Native embed created:', pastedText)
+        } catch (error) {
+          console.error('Error creating native embed:', error)
+        }
+      }
+      // Check if it's a generic website URL (not YouTube, Google Sheets, or native embeds)
+      else if (detectGenericWebsiteURL(pastedText)) {
         // Prevent both default browser behavior and TLdraw's built-in paste handling
         e.preventDefault()
         e.stopPropagation()
@@ -1102,7 +1136,7 @@ function WebsitePasteHandler() {
         try {
           // Find optimal position to avoid overlaps
           const shapeW = 400
-          const shapeH = 80
+          const shapeH = 300 // Enhanced link card height
           const position = findOptimalShapePosition(editor, shapeW, shapeH)
           
           editor.createShape({
@@ -2326,10 +2360,34 @@ function App() {
           console.log('Google Sheets processing (right-click):', url)
           return { type: 'excel-table', url, w: shapeW, h: shapeH }
           
+        } else if (detectTLDrawNativeEmbed(url)) {
+          // Let TLDraw handle native embeds (Figma, Twitter, YouTube, Vimeo, etc.)
+          const shapeW = 560
+          const shapeH = 315
+          const position = findOptimalShapePosition(editor, shapeW, shapeH)
+          
+          editor.createShape({
+            type: 'embed',
+            x: position.x,
+            y: position.y,
+            props: {
+              url: url,
+              w: shapeW,
+              h: shapeH,
+            },
+          })
+          
+          setTimeout(() => {
+            centerCameraOnShape(editor, position.x, position.y, shapeW, shapeH)
+          }, 100)
+          
+          console.log('Native embed created:', url)
+          return { type: 'embed', url, w: shapeW, h: shapeH }
+          
         } else if (detectGenericWebsiteURL(url)) {
           // Create our custom link shape for all other websites
           const shapeW = 400
-          const shapeH = 80
+          const shapeH = 300 // Enhanced link card height
           const position = findOptimalShapePosition(editor, shapeW, shapeH)
           
           editor.createShape({

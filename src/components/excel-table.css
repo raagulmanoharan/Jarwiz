@@ -429,6 +429,8 @@
   font-size: 14px;
   gap: 12px;
   letter-spacing: normal;
+  min-height: 200px;
+  width: 100%;
 }
 
 .loading-spinner {
@@ -438,18 +440,24 @@
   border-top: 3px solid #007bff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  display: block;
+  margin: 0 auto;
 }
 
 .loading-spinner.small {
   width: 20px;
   height: 20px;
   border-width: 2px;
+  display: block;
+  margin: 0 auto;
 }
 
 .loading-spinner.tiny {
   width: 16px;
   height: 16px;
   border-width: 2px;
+  display: block;
+  margin: 0 auto;
 }
 
 
